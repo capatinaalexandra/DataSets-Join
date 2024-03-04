@@ -1,0 +1,11 @@
+body{
+    background-color: rgb(243, 245, 185);
+    
+}
+.containerClass{
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+

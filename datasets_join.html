@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="./datasets_join.css">
+<title>Join Datasets</title>
+</head>
+<body>
+  <div class = "containerClass">
+    <input type = "file" id = "fileInput" multiple accept = ".csv">
+
+    <button onclick = "convertAndMergeCSV()" > Merge CSV </button>
+
+    <script src = "https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    <script src = "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    
+    <script>
+          function convertAndMergeCSV() {
+            const files = document.getElementById('fileInput').files;
+            let csvDataSets = [];
+
+            function readAndParseFile(file) {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                  const csvData = event.target.result;
+                  const dataParsed = Papa.parse(csvData, { header: true }).data;
+                  csvDataSets.push(dataParsed);
+                  if(csvDataSets.length === files.length) {
+                    mergeAndDownloadData(csvDataSets);
+
+                  }
+
+                }
+                reader.readAsText(file);
+                
+              }
+
+              for( let i = 0; i < files.length; i++ ) {
+                readAndParseFile(files[i]);
+              }
+
+            }
+
+          function mergeDataSets(dataSets) {
+            const mergedDataSets = {};
+            dataSets.forEach(files => {
+              files.forEach(row => {
+                            const key = row['domain'] || row['root_domain'];
+                
+                            if (key) {
+                                  
+                                    let filteredAddress = row['address'] ? row['address'].replace(/[^a-zA-Z0-9 ]/g, '') : '';
+                                    let filteredPhone = row['phone'] ? row['phone'].replace(/[^0-9 ]/g, '') : '';
+                                    let filteredCategory = row['categories'] || row['category'] || row['s_category'] ? row['categories'] || row['category'] || row['s_category'].replace(/[^a-zA-Z0-9,&\-| ]/g, '') : '';
+                                    let filteredCountry = row['country_name'] || row['main_country'] ? (row['country_name'] || row['main_country']).toLowerCase().trim().replace(/[^a-zA-Z ]/g, '') : '';
+
+                                    filteredCountry = filteredCountry.split(' ').map(countr => countr.charAt(0).toUpperCase() + countr.slice(1)).join(' ');
+                                    filteredAddress = filteredAddress.split(' ').map(adr => adr.trim().replace(/[^^a-zA-Z0-9,]/g)).join(' ');
+                                    
+                                    if (!mergedDataSets[key]) {
+                                        mergedDataSets[key] = { ...row, 'address': filteredAddress, 'phone' : filteredPhone, 'categories' : filteredCategory, 'category' : filteredCategory, 
+                                        's_category' : filteredCategory, 'country_name': filteredCountry, 'main_country': filteredCountry};
+                                    } else {
+                                        Object.keys(row).forEach(field => {
+                                            if (mergedDataSets[key][field] === undefined || mergedDataSets[key][field] === '') {
+                                                mergedDataSets[key][field] = row[field];
+                                            } else {
+                                                mergedDataSets[key][field] = resolveConflicts(mergedDataSets[key][field], row[field]);
+                                            }
+                                        });
+                                        mergedDataSets[key]['address'] = filteredAddress;
+                                        mergedDataSets[key]['phone'] = filteredPhone;
+                                        mergedDataSets[key]['categories'] = filteredCategory;
+                                        mergedDataSets[key]['category'] = filteredCategory;
+                                        mergedDataSets[key]['s_category'] = filteredCategory;
+                                        mergedDataSets[key]['country_name'] = filteredCountry;
+                                        mergedDataSets[key]['main_country'] = filteredCountry;
+                                        
+                                    }
+                                }
+                            });
+                        });
+                    return Object.values(mergedDataSets);
+                    
+                }
+      
+          function resolveConflicts(existingValue, newValue) {
+            if (newValue  !== undefined && newValue !== "") {
+                return  newValue;
+            }
+
+            return existingValue;
+          }
+
+          function mergeAndDownloadData(dataSets) {
+            const mergedFile = mergeDataSets(dataSets);
+            const filteredDataSets = mergedFile.map(row => ({                    
+                        'Domain': row['domain'] || row['root_domain'],
+                        'Country': row['country_name'] || row['main_country'],
+                        'Address': row['address'],
+                        'Category': row['categories'] || row['category'] || row['s_category'],
+                        'Phone': row['phone'],
+                        'Company Name': row['name'] || row['legal_name']
+
+
+            }))
+
+            const csv = Papa.unparse(filteredDataSets);
+            downloadFinalCSV(csv);
+
+          }
+
+          function downloadFinalCSV(csv) {
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const urlAddress = window.URL.createObjectURL(blob);
+            const el = document.createElement('a');
+            el.href = urlAddress;
+            el.download = 'final_merged_CSV_file.csv';
+            document.body.appendChild(el);
+            el.click();
+            document.body.removeChild(el);
+            window.URL.revokeObjectURL(urlAddress);
+          }
+
+        
+        
+    </script>
+  </div>
+</body>
+</html>
